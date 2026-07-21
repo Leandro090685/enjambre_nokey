@@ -179,6 +179,18 @@ else
 fi
 
 echo
+echo "── Deploy (staging/prod, opcional) ──"
+dp_plat="$(swarm_deploy_platform)"; dp_stg="$(swarm_staging_branch)"; dp_prd="$(swarm_prod_branch)"
+if [ -z "$dp_stg" ] && [ -z "$dp_prd" ]; then
+    warn "Sin markers de deploy (STAGING_BRANCH/PROD_BRANCH en workspace.md) — opcional; rige el modo simple del skill git"
+else
+    ok "Deploy declarado (${dp_plat:-?}): staging '$dp_stg' → $(swarm_staging_url) · prod '$dp_prd' → $(swarm_prod_url)"
+    if [ -z "$dp_stg" ] || [ -z "$dp_prd" ]; then
+        warn "Markers de deploy incompletos: declara STAGING_BRANCH y PROD_BRANCH juntos"
+    fi
+fi
+
+echo
 echo "── Plane (seguimiento, opcional) ──"
 plane_ws="$(swarm_ws_marker PLANE_WORKSPACE)"; plane_proj="$(swarm_ws_marker PLANE_PROJECT)"
 if [ -z "$plane_ws" ] || [ -z "$plane_proj" ]; then

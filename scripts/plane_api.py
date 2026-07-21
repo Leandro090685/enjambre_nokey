@@ -6,7 +6,7 @@
 # secretos): PLANE_API_BASE, PLANE_WORKSPACE, PLANE_PROJECT, PLANE_API_KEY. No se
 # hardcodea nada: sin config, sale con error claro. Solo stdlib (urllib) — sin dependencias.
 #
-# Subcomandos: env, states, labels, members, list, get, create, update, move, comment, delete.
+# Subcomandos: env, states, labels, members, list, next, get, create, update, move, comment, delete.
 import argparse
 import html
 import json
@@ -27,6 +27,8 @@ USER_AGENT = os.environ.get("PLANE_USER_AGENT", "nokey-enjambre-plane/1.0")
 
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 PRIORITIES = ("urgent", "high", "medium", "low", "none")
+# Orden para elegir "la próxima" tarea: mayor urgencia primero; a igual prioridad, el issue más viejo.
+PRIORITY_ORDER = {"urgent": 0, "high": 1, "medium": 2, "low": 3, "none": 4}
 
 _states_cache = None
 _labels_cache = None
@@ -144,6 +146,23 @@ def label_ids(names):
     return ids
 
 
+def member_id(ref):
+    # Acepta el UUID del miembro o (substring de) su display_name/email, case-insensitive.
+    ref = str(ref).strip()
+    if UUID_RE.match(ref):
+        return ref
+    matches = []
+    for m in paginate("members/"):
+        name = "%s %s" % (m.get("display_name") or "", m.get("email") or "")
+        if ref.lower() in name.lower():
+            matches.append((m.get("member") or m.get("id"), name.strip()))
+    if not matches:
+        die("miembro '%s' inexistente (ver `plane.sh members`)" % ref)
+    if len(matches) > 1:
+        die("miembro '%s' ambiguo: %s" % (ref, ", ".join(n for _, n in matches)))
+    return matches[0][0]
+
+
 def resolve_issue(ref):
     # Acepta el UUID del issue o su #número de secuencia (busca por sequence_id).
     ref = str(ref).strip()
@@ -212,33 +231,26 @@ def cmd_members(args):
         print("%-38s  %s" % (m.get("member") or m.get("id", "?"), name))
 
 
-def cmd_list(args):
-    require_config()
-    issues = paginate("issues/")
-    want_state = args.state.lower() if args.state else None
-    want_prio = args.priority.lower() if args.priority else None
-    q = args.search.lower() if args.search else None
-    rows = []
-    for i in sorted(issues, key=lambda x: x.get("sequence_id", 0)):
-        sn = state_name(i.get("state"))
-        if want_state and sn.lower() != want_state:
+def filter_issues(issues, state=None, priority=None, search=None, assignee=None):
+    want_state = state.lower() if state else None
+    want_prio = priority.lower() if priority else None
+    q = search.lower() if search else None
+    mid = member_id(assignee) if assignee else None
+    out = []
+    for i in issues:
+        if want_state and state_name(i.get("state")).lower() != want_state:
             continue
         if want_prio and (i.get("priority") or "none").lower() != want_prio:
             continue
         if q and q not in (i.get("name") or "").lower():
             continue
-        rows.append((i.get("sequence_id"), sn, i.get("priority") or "none", i.get("name") or ""))
-    for seq, sn, pr, nm in rows:
-        print("#%-4s  %-12s  %-7s  %s" % (seq, sn, pr, nm))
-    print("— %s issue(s)" % len(rows))
+        if mid and mid not in (i.get("assignees") or []):
+            continue
+        out.append(i)
+    return out
 
 
-def cmd_get(args):
-    require_config()
-    iid = resolve_issue(args.ref)
-    st, i = request("GET", "issues/%s/" % iid)
-    if st >= 400:
-        die("HTTP %s: %s" % (st, json.dumps(i)[:300]))
+def print_issue(i):
     print("#%s  %s" % (i.get("sequence_id"), i.get("name")))
     print("estado:    %s" % state_name(i.get("state")))
     print("prioridad: %s" % (i.get("priority") or "none"))
@@ -247,6 +259,40 @@ def cmd_get(args):
     desc = i.get("description_html") or ""
     if desc:
         print("---\n%s" % desc)
+
+
+def cmd_list(args):
+    require_config()
+    issues = filter_issues(paginate("issues/"), args.state, args.priority, args.search, args.assignee)
+    rows = [(i.get("sequence_id"), state_name(i.get("state")), i.get("priority") or "none",
+             i.get("name") or "") for i in sorted(issues, key=lambda x: x.get("sequence_id", 0))]
+    if args.limit:
+        rows = rows[: args.limit]
+    for seq, sn, pr, nm in rows:
+        print("#%-4s  %-12s  %-7s  %s" % (seq, sn, pr, nm))
+    print("— %s issue(s)" % len(rows))
+
+
+def cmd_next(args):
+    # "La próxima tarea": el issue más urgente (y a igual prioridad, más viejo) del estado
+    # dado (default Todo). Imprime el detalle completo para que el orquestador arranque directo.
+    require_config()
+    issues = filter_issues(paginate("issues/"), args.state or "Todo", None, None, args.assignee)
+    if not issues:
+        print("(sin tareas en estado '%s')" % (args.state or "Todo"))
+        return
+    issues.sort(key=lambda i: (PRIORITY_ORDER.get((i.get("priority") or "none").lower(), 9),
+                               i.get("sequence_id") or 0))
+    print_issue(issues[0])
+
+
+def cmd_get(args):
+    require_config()
+    iid = resolve_issue(args.ref)
+    st, i = request("GET", "issues/%s/" % iid)
+    if st >= 400:
+        die("HTTP %s: %s" % (st, json.dumps(i)[:300]))
+    print_issue(i)
 
 
 def cmd_create(args):
@@ -285,8 +331,10 @@ def cmd_update(args):
         body["priority"] = args.priority
     if args.label:
         body["labels"] = label_ids(args.label)
+    if args.assignee:
+        body["assignees"] = [member_id(a) for a in args.assignee]
     if not body:
-        die("nada para actualizar (pasá --name/--desc/--state/--priority/--label)")
+        die("nada para actualizar (pasá --name/--desc/--state/--priority/--label/--assignee)")
     st, d = request("PATCH", "issues/%s/" % iid, body)
     if st >= 400:
         die("no se pudo actualizar: HTTP %s — %s" % (st, json.dumps(d)[:300]))
@@ -335,7 +383,14 @@ def build_parser():
     sp.add_argument("--state")
     sp.add_argument("--priority")
     sp.add_argument("--search")
+    sp.add_argument("--assignee", help="UUID o nombre del miembro")
+    sp.add_argument("--limit", type=int)
     sp.set_defaults(fn=cmd_list)
+
+    sp = sub.add_parser("next", help="la próxima tarea a tomar (más urgente de Todo)")
+    sp.add_argument("--state", help="estado del pool (default: Todo)")
+    sp.add_argument("--assignee", help="limitar a un miembro (UUID o nombre)")
+    sp.set_defaults(fn=cmd_next)
 
     sp = sub.add_parser("get", help="ver un issue")
     sp.add_argument("ref")
@@ -357,6 +412,7 @@ def build_parser():
     sp.add_argument("--state")
     sp.add_argument("--priority")
     sp.add_argument("--label", action="append")
+    sp.add_argument("--assignee", action="append", help="UUID o nombre (reemplaza los assignees)")
     sp.set_defaults(fn=cmd_update)
 
     sp = sub.add_parser("move", help="cambiar el estado de un issue")

@@ -104,6 +104,28 @@ propio para levantar Odoo, etc.) va acá en prosa.
 
 ---
 
+## Deploy: staging / producción (opcional)
+
+Si el repo de trabajo tiene entornos desplegados atados a ramas largas (típico **Odoo.sh**: cada
+push a la rama deploya el entorno), declaralo con estos markers — los leen el skill `git`, el
+agente `@git-flow`, `git_state.sh` (para proteger ambas ramas largas) y `/salud`:
+
+```
+DEPLOY_PLATFORM: odoo.sh                        # odoo.sh | otro (informativo)
+PROD_BRANCH:     main                           # rama larga de producción
+PROD_URL:        https://micliente.odoo.com     # URL del entorno de producción
+STAGING_BRANCH:  staging                        # rama larga de staging/integración
+STAGING_URL:     https://stage-micliente.odoo.com
+```
+
+Con esto el flujo Git pasa a modo **staging/prod** (ver skill `git`): `feature/`/`fix/` nacen de
+`STAGING_BRANCH` y sus PRs apuntan ahí; `hotfix/` nace de `PROD_BRANCH` (con back-merge a staging);
+la promoción staging→prod es un **release** (siempre a pedido). Sin estos markers rige el modelo
+simple de una sola rama por defecto. ⚠️ Recordá: si la plataforma es Odoo.sh, **merge a rama larga
+= deploy real** del entorno.
+
+---
+
 ## Seguimiento del proyecto: Plane.so (opcional)
 
 Si el proyecto se trackea en **Plane.so**, el enjambre lo opera con `.claude/scripts/plane.sh`

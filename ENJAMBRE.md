@@ -69,13 +69,16 @@ Todo lo demás (skills, agents, commands, hooks) **referencia** estas tres capas
     │   ├── odoo-data-migration/SKILL.md ← Migración de datos / scripts de upgrade
     │   ├── odoo-tests/SKILL.md         ← Patrones de tests (si se piden o el repo los requiere)
     │   ├── debugging-odoo/SKILL.md     ← Técnicas de debugging
-    │   ├── git/SKILL.md                ← Flujo de trabajo Git genérico
+    │   ├── git/SKILL.md                ← Flujo Git (staging/prod Odoo.sh, release, hotfix)
+    │   ├── plane-tracking/SKILL.md     ← Seguimiento en Plane.so (ciclo agéntico de tareas)
     │   ├── sdd-specification/SKILL.md  ← Metodología SDD
     │   └── minimal-footprint/SKILL.md  ← Disciplina anti-over-engineering (escalera + NO-negociables)
     │
-    ├── commands/                       ← Slash commands (6)
+    ├── commands/                       ← Slash commands (11)
     │   ├── odoo-module.md  odoo-model.md  odoo-view.md  odoo-inherit.md
-    │   └── analizar-core.md  analizar-enterprise.md
+    │   ├── analizar-core.md  analizar-enterprise.md  refinar-feature.md
+    │   ├── contexto.md  salud.md
+    │   └── plane.md  tarea.md          ← Seguimiento Plane + tomar/resolver tareas
     │
     ├── hooks/                          ← Validación + automatización (los cablea settings.json)
     │   ├── post_write.sh               ← Dispatcher PostToolUse (lee el JSON del evento)
@@ -99,6 +102,7 @@ Todo lo demás (skills, agents, commands, hooks) **referencia** estas tres capas
     │   ├── extract_docx.sh             ← Ingesta .docx (texto+imágenes) → @feature-analyst
     │   ├── spec_lint.py                ← Linter de specs SDD → @sdd-generate y pre-pass de analyze
     │   ├── review_static.sh            ← Pre-pass estático de review (módulo completo) → @reviewer (vía orquestador)
+    │   ├── plane.sh  plane_api.py      ← Cliente Plane.so (list/next/get/create/update/move/comment) → orquestador
     │   └── statusline.sh               ← Línea de estado
     │
     ├── references/                     ← Breaking changes por versión (archivos reales)
@@ -138,7 +142,7 @@ Es el **único agente que le habla al usuario**. Recibe el request, decide qué 
 
 Su comportamiento está definido en `CLAUDE.md`:
 - Tabla de 11 subagentes con cuándo invocar cada uno
-- Flujos típicos (`Migra`, `Revisa`, `Crea módulo`, `Refina` (planning), `Especifica`, `Implementa`, `Modifica`, `Git`)
+- Flujos típicos (`Migra`, `Revisa`, `Crea módulo`, `Refina` (planning), `Especifica`, `Implementa`, `Modifica`, `Trabaja la tarea` (Plane, `/tarea`), `Git`)
 - Reglas de orquestación (la primera: leer `workspace.md`)
 - Protocolo de fallback (máx 2 intentos por agente)
 - Formato de handoff estandarizado entre agentes
@@ -228,7 +232,8 @@ A diferencia de los agentes (que son subprocesos), los skills se **inyectan en e
 | `odoo-data-migration` | Al escribir scripts de upgrade o datafixes (migración de datos) |
 | `odoo-tests` | Al escribir tests backend o e2e (cuando se piden explícitamente o el repo los requiere vía `.swarm.conf` `TESTS=required` / `E2E=required`; el orquestador lo inyecta a @code-dev en ese caso) |
 | `debugging-odoo` | Al diagnosticar errores |
-| `git` | Flujo de trabajo Git genérico: ramas de feature/fix, commits, PRs vía `gh` (lo carga @git-flow) |
+| `git` | Flujo Git: feature/fix desde staging, hotfix desde prod, PRs vía `gh`, release staging→prod a pedido — ramas de deploy Odoo.sh declaradas en `workspace.md` § Deploy (lo carga @git-flow) |
+| `plane-tracking` | Seguimiento en Plane.so: ciclo agéntico de tareas (Todo→In Progress→Testing→Done, comentarios, creación directa de issues, plantilla de issue detallado). Lo usa el orquestador (`/plane`, `/tarea`) |
 | `sdd-specification` | Al generar especificaciones SDD |
 | `minimal-footprint` | Al refinar requerimientos, implementar lógica de negocio o revisar código (anti-over-engineering; lo inyecta el orquestador a @feature-analyst y @code-dev, y lo usa @reviewer) |
 
@@ -362,7 +367,8 @@ gate al escribir; estos scripts son la versión **on-demand por módulo** para o
    │
    ├── ¿Feature compleja? → ofrece SDD → sdd-generate
    │
-   ├── BRANCH-FIRST: ¿el repo está en main/master? → git-flow crea una rama de feature/fix
+   ├── BRANCH-FIRST: ¿el repo está en una rama larga (main / stagesunra)? → git-flow crea la rama
+   │   de trabajo: feature/fix desde staging; hotfix desde prod (workspace.md § Deploy, skill git)
    │
    ├── ¿Módulo nuevo? → scaffold
    │
@@ -418,7 +424,9 @@ El hook valida automáticamente los detectables por patrón (`references/pattern
 | `/analizar-enterprise <módulo>` | Analizar módulo enterprise |
 | `/refinar-feature <requerimiento>` | Refinar una idea cruda (pre-spec) para la planning (`.md`) |
 | `/contexto` | Resumen de orientación: versión Odoo, cliente/DB, Docker, git, módulo actual y specs |
-| `/salud` | Chequeo de salud del entorno (workspace.md, versión, paths, references, Docker, git) |
+| `/salud` | Chequeo de salud del entorno (workspace.md, versión, paths, references, Docker, deploy, Plane, git) |
+| `/plane [subcomando]` | Operar el seguimiento en Plane.so (list/next/get/create/update/move/comment) |
+| `/tarea [#seq]` | Tomar una tarea de Plane (la próxima o una dada) y resolverla de punta a punta |
 
 ---
 
@@ -431,8 +439,8 @@ El hook valida automáticamente los detectables por patrón (`references/pattern
 | Configuración | `.claude/settings.json` | Permisos + hook de validación |
 | Agentes públicos | 8 | Trabajo especializado (incluye @git-flow) |
 | Procedimientos internos | 3 | Subrutinas del orquestador |
-| Skills | 14 | Conocimiento cargable |
-| Commands | 9 | Atajos de tareas comunes (incluye `/contexto`, `/salud`) |
+| Skills | 15 | Conocimiento cargable |
+| Commands | 11 | Atajos de tareas comunes (incluye `/contexto`, `/salud`, `/plane`, `/tarea`) |
 | Hooks | varios | Validación, protección de core, auto-update + orientación y notificaciones |
 | References | por versión | Breaking changes (docs + patterns del hook) |
 | Assets | template HTML + plantillas de test/política de repo | Documentación de módulos y `.swarm.conf` |

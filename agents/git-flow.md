@@ -21,11 +21,14 @@ trabajo** (customizaciones de cliente / productos). No escribis ni editas codigo
 > **Entorno primero**: leé `.claude/workspace.md` para `CLIENT_ADDONS`/`PRODUCT_ADDONS` y paths. El
 > repo concreto se resuelve en runtime desde el path del modulo.
 
-> **[POR DEFINIR: convención de ramas del repo cliente]** — la convención exacta de naming de ramas
-> del repo de Sunra (sunrasa) todavía no está fijada. Hasta que se defina, usá por defecto ramas
-> cortas descriptivas `feature/<algo-breve>` (nueva funcionalidad) / `fix/<algo-breve>` (correccion),
-> en inglés, sin ID de tarea obligatorio (no hay integración con un sistema de tickets externo). Si
-> el usuario da un identificador (ticket, nombre de feature), incorporalo al slug.
+> **Convención sunrasa (definida jul-2026, fuente: skill `git`)** — el repo está en **Odoo.sh** con
+> dos ramas largas declaradas en `workspace.md` (§ Deploy): `PROD_BRANCH` (`main` → producción) y
+> `STAGING_BRANCH` (`stagesunra` → staging). **Merge a una rama larga = deploy real del entorno.**
+> Ramas cortas: `feature/<#seq>-<slug>` / `fix/<#seq>-<slug>` **nacen de staging**;
+> `hotfix/<#seq>-<slug>` **nace de prod** (urgencia de producción, con back-merge a staging tras el
+> merge). `<#seq>` = número del issue de Plane si existe (lo normal); slug en inglés, corto. Los PRs
+> de feature/fix apuntan a staging; los de hotfix a prod; la promoción staging→prod es un **release**
+> (PR staging→prod + tag `release/YYYY-MM-DD`) y se hace SOLO a pedido explícito.
 
 ## Cuando te activan
 
@@ -37,10 +40,11 @@ trabajo** (customizaciones de cliente / productos). No escribis ni editas codigo
 > → PR en GitHub via `gh` → merge tras aprobacion. Todo lo que no sea *branch-first* se ejecuta
 > **solo a pedido explicito**.
 >
-> **Publicar + PR (solo a pedido)**: push de la rama y `gh pr create --title "..." --body "..."`
-> contra la rama base del repo (normalmente la default del remoto — confirmá con el usuario si no es
-> obvia). No hay script propietario que arme el PR: usá `gh` directo. Si el remote no es GitHub o
-> falta `gh`, fallback: push y dejar la URL para abrir el PR a mano (no es un fallo).
+> **Publicar + PR (solo a pedido)**: push de la rama y `gh pr create --base <destino> --title "..."
+> --body "..."`. El destino sale del tipo de rama (skill `git` §6): feature/fix → `STAGING_BRANCH`;
+> hotfix → `PROD_BRANCH`; release → PR `STAGING_BRANCH`→`PROD_BRANCH`. En modo simple, la default
+> del remoto. No hay script propietario que arme el PR: usá `gh` directo. Si el remote no es GitHub
+> o falta `gh`, fallback: push y dejar la URL para abrir el PR a mano (no es un fallo).
 >
 > **Merge = a pedido + confirmacion explicita**: tras aprobacion del PR, mergealo (`gh pr merge` o a
 > pedido del usuario desde la UI) y confirmá que el push llegó. No hay ningún sistema externo donde
@@ -57,16 +61,19 @@ pases por argumento ni los imprimas**.
    .claude/scripts/git_state.sh state <path_del_modulo>
    ```
    Te da, entre otros datos: toplevel, `REPO_KIND` (work/core/enjambre — si NO es `work`, frená),
-   rama actual, staged y `MODULES_STAGED`. **Usá solo lo que aplica a este flujo generico** (repo,
-   rama, staged): ignorá los campos ligados a `git flow`/PM (`GITFLOW_*`, `PM_REF`, `PM_TYPE`,
-   `BRANCH_BASE`) si el script todavia los emite — no forman parte de este flujo. Si algo clave no se
-   pudo detectar (toplevel, rama) → `NEEDS_INPUT`, no adivines. `git fetch origin` sigue siendo tuyo.
-2. **Crear/asegurar la rama** (branch-first): si ya estás en una rama corta de trabajo (no en
-   `main`/`master` ni en una rama larga de integración del repo), seguí. Si estás parado en la rama
-   principal, creá la rama de trabajo (ver naming arriba) ANTES de que otro agente escriba:
+   rama actual, `PROTECTED_BRANCH`, y las ramas de deploy resueltas de `workspace.md`:
+   `STAGING_BRANCH` / `PROD_BRANCH` / `DEPLOY_PLATFORM` (vacías = modo simple), más staged y
+   `MODULES_STAGED`. Si algo clave no se pudo detectar (toplevel, rama) → `NEEDS_INPUT`, no
+   adivines. `git fetch origin` sigue siendo tuyo.
+2. **Crear/asegurar la rama** (branch-first): si ya estás en una rama corta de trabajo (no en una
+   rama larga: `main`/`master`, `STAGING_BRANCH` ni `PROD_BRANCH`), seguí. Si estás parado en una
+   rama larga, creá la rama de trabajo (ver naming arriba) ANTES de que otro agente escriba,
+   **desde la base correcta**:
    ```bash
-   git checkout -b feature/<slug> origin/<rama-base>   # o fix/<slug>
+   git checkout -b feature/<#seq>-<slug> origin/<STAGING_BRANCH>   # feature/fix → nacen de staging
+   git checkout -b hotfix/<#seq>-<slug>  origin/<PROD_BRANCH>      # hotfix → nace de prod
    ```
+   (En modo simple —sin markers— la base es la rama por defecto del repo.)
 3. **Ejecutar la operacion** con los comandos del skill `git`. Para commit: stagear archivos
    especificos (nunca `git add .`/`-A`), revisar `git diff --staged`, y redactar el mensaje en
    español con verbo en infinitivo, siguiendo el formato que fije el skill `git`. Multi-repo: mismo
@@ -75,8 +82,11 @@ pases por argumento ni los imprimas**.
 
 ## Guardrails (CRITICOS)
 
-- **NUNCA** commitear/trabajar parado en `main`/`master` (ni en una rama de integración larga si el
-  repo la usa) — crear siempre una rama de trabajo antes de escribir.
+- **NUNCA** commitear/trabajar parado en una rama larga (`main`/`master`, `STAGING_BRANCH`,
+  `PROD_BRANCH`) — crear siempre una rama de trabajo antes de escribir.
+- **NUNCA** mergear/pushear a `PROD_BRANCH` (release o hotfix-merge) sin pedido explícito del
+  usuario relayed por el orquestador: en Odoo.sh eso **deploya producción**. Ante la duda →
+  `NEEDS_INPUT`.
 - **NUNCA** `--force`/force-push, `git add .`/`-A` a ciegas, `--amend` (salvo pedido) ni `--no-verify`.
 - **NUNCA** commitear secrets (API keys, passwords, tokens, `.env`, configs de staging/prod).
 - **push / PR / merge SOLO a pedido** explicito del usuario (relayed por el orquestador). El

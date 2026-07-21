@@ -127,13 +127,38 @@ Tu trabajo es recibir requests del usuario y coordinar los subagentes especializ
 7. @reviewer (modo review, con el pre-pass `review_static.sh` inyectado — ver flujo "Revisa"): valida implementacion vs spec y sync de version. Si pasa -> spec `verified`.
 > Con `PARALLELISM: full`, los pasos 6 (la corrida de @testing) y 7 corren **en paralelo** tras cerrar @code-dev.
 
-### "Flujo Git" (git genérico — solo el *cuándo*; el *cómo* vive en el skill `git`)
-> El **cómo** (naming de ramas, formato de commit/PR, prerequisitos, multi-repo) está **todo** en el
-> skill `git` (fuente única). Acá solo coordinás *cuándo* invocar @git-flow. Lo único automático es
-> el *branch-first*; commit/push/PR se corren **solo a pedido del usuario**.
-1. **Branch-first (automático)**: @git-flow asegura/crea una rama de feature (`feature/<algo>` o `fix/<algo>`) antes de que escriban @code-dev/@scaffold. La convención exacta de ramas del repo cliente está [POR DEFINIR: convención de ramas del repo cliente].
+### "Trabaja la tarea #N" / "Agarrá la próxima tarea" (Plane → resolver → cerrar; comando `/tarea`)
+> El enjambre toma tareas de Plane y las gestiona de punta a punta. Detalle: skill `plane-tracking`
+> § *Ciclo de vida agéntico*. Estados: Todo (pool) → In Progress → Testing (en validación) → Done.
+1. Obtener la tarea: `plane.sh get <#seq>` (o `plane.sh next` si pidió "la próxima"). Sin tareas en
+   Todo → reportar y sugerir promover desde Backlog.
+2. **Gate de detalle**: si la descripción no alcanza para arrancar (sin CA, ambigua) → preguntar lo
+   mínimo al usuario, `plane.sh update` del issue con lo aclarado, y recién después seguir.
+3. `plane.sh move <#seq> "In Progress"` + branch-first: @git-flow asegura `feature/<#seq>-<slug>`
+   (skill `git`).
+4. Resolver con el flujo que corresponda (Implementa / Modifica / Crea módulo / Refina / Migra) con
+   **todas** sus precondiciones (docs, SDD, tests, review). Comentar hitos relevantes en el issue.
+5. Cerrar: implementado y validado → `move "Testing"` + `comment` (rama/PR, módulos+versión, qué
+   validar y dónde); verificado por el usuario → `move "Done"`. Bloqueado → `comment` con el bloqueo
+   y reportar (`NEEDS_INPUT`/`BLOCKED`), sin abandonar en silencio.
+6. Reportar: issue trabajado, rama, estado final en Plane, handoff Git (commit/push/PR a pedido).
+
+### "Flujo Git" (solo el *cuándo*; el *cómo* vive en el skill `git`)
+> El **cómo** (naming de ramas, bases staging/prod, formato de commit/PR, release, multi-repo) está
+> **todo** en el skill `git` (fuente única). Acá solo coordinás *cuándo* invocar @git-flow. Lo único
+> automático es el *branch-first*; commit/push/PR se corren **solo a pedido del usuario**.
+1. **Branch-first (automático)**: @git-flow asegura/crea la rama de trabajo antes de que escriban
+   @code-dev/@scaffold. Convención sunrasa (definida): `feature/<#seq>-<slug>` / `fix/<#seq>-<slug>`
+   **nacen de `STAGING_BRANCH`** (`stagesunra`); `hotfix/<#seq>-<slug>` **nace de `PROD_BRANCH`**
+   (`main`) solo para urgencias de producción. `<#seq>` = issue de Plane. Markers en `workspace.md`
+   § Deploy.
 2. Implementa / Modifica / Crea módulo corren sobre esa rama.
-3. **Commit** (a pedido) → **Push + PR** vía `gh`/GitHub (a pedido). Nunca por tu cuenta.
+3. **Commit** (a pedido) → **Push + PR** vía `gh`/GitHub (a pedido; feature/fix → base staging,
+   hotfix → base prod). Nunca por tu cuenta.
+4. **Release a producción (SOLO a pedido explícito — "deployá a prod")**: PR `stagesunra`→`main` +
+   merge (no squash) + tag `release/YYYY-MM-DD` (skill `git` §7bis). ⚠️ El repo está en **Odoo.sh**:
+   merge a una rama larga = **deploy real** (staging: https://stage-miluan.odoo.com, prod:
+   https://miluan.odoo.com). Un hotfix mergeado a prod requiere back-merge a staging.
 > Detalle de comandos y variantes: ver skill `git`.
 
 ## Reglas de orquestacion
@@ -192,12 +217,14 @@ Tu trabajo es recibir requests del usuario y coordinar los subagentes especializ
 >   te lo recuerda vía `additionalContext` tras cada Write/Edit — ese recordatorio **no es opcional**.
 
 > **Precondición Git — branch-first (SIEMPRE, antes de cualquier Write/Edit sobre un repo de trabajo).**
-> Se trabaja en ramas de feature (ver skill `git`), **NUNCA** directo sobre `main`/`master`. La
-> convención exacta de ramas del repo cliente está [POR DEFINIR: convención de ramas del repo
-> cliente]. Antes de mandar a @code-dev / @scaffold a escribir:
-> - Verificá en qué rama está el repo del módulo. Si ya estás en una rama de feature correcta →
->   seguí. Si estás en `main`/`master` → **FRENÁ**: invocá @git-flow para crear la rama de trabajo
->   ANTES de tocar código.
+> Se trabaja en ramas cortas (ver skill `git`), **NUNCA** directo sobre una rama larga: `main`/
+> `master`, ni las ramas de deploy declaradas en `workspace.md` § Deploy (`STAGING_BRANCH` =
+> `stagesunra`, `PROD_BRANCH` = `main` — en Odoo.sh un push ahí **deploya el entorno**). Antes de
+> mandar a @code-dev / @scaffold a escribir:
+> - Verificá en qué rama está el repo del módulo (`git_state.sh state` emite `PROTECTED_BRANCH` y
+>   las ramas base). Si ya estás en una rama de trabajo correcta → seguí. Si estás en una rama
+>   larga → **FRENÁ**: invocá @git-flow para crear la rama de trabajo ANTES de tocar código
+>   (feature/fix desde staging; hotfix desde prod).
 > - **Alcance**: esto aplica a los **repos de trabajo** (`CLIENT_ADDONS` / `PRODUCT_ADDONS`), **no**
 >   al repo del enjambre (`.claude/`, gestionado por `session_pull.sh`).
 > - El *branch-first* es lo único Git que es automático. **Commit, push y PR se hacen SOLO cuando el
@@ -219,7 +246,7 @@ Tu trabajo es recibir requests del usuario y coordinar los subagentes especializ
   Operativa en paralelo: integrá cada envelope **al retornar** (no esperes a todos para reaccionar a un `FAILED`/`BLOCKED`); el protocolo de fallback (máx 2 intentos) es **por agente**; si dos resultados chocan (ej. @reviewer CRÍTICO sobre código que @testing dio verde), resolvé primero lo de @reviewer.
 - **Integra resultados**: cuando un subagente retorna, leelo y decide si hace falta otro
 - **Reporta al usuario**: al final, da un resumen claro de que se hizo y que queda pendiente. Incluí el **handoff Git**: en qué rama de feature quedaron los cambios y que podés commitear/pushear/abrir el PR vía @git-flow **solo a pedido** (ver *Precondición Git* y skill `git`). No commitees/pushees/abras PR por tu cuenta.
-- **Seguimiento en Plane** (skill `plane-tracking`, script `.claude/scripts/plane.sh`): el proyecto se trackea en Plane.so. Al **arrancar** una tarea que corresponde a un issue, movelo a *In Progress* (`plane.sh move <#seq> "In Progress"`); al **cerrarla** verificada, a *Done*, opcionalmente con un `comment` (resultado, rama/PR). Cuando el usuario describe trabajo **nuevo** no trackeado, **ofrecé** crear el issue — no lo crees en silencio ni inventes tareas. Crear/mutar issues es *outward-facing*: proponé antes de crear en lote. Config y API key **per-dev**: markers `PLANE_*` en `workspace.md` + `PLANE_API_KEY` en el archivo de secretos (`NOKEY_SECRETS_FILE`).
+- **Seguimiento en Plane — gestión agéntica** (skill `plane-tracking`, script `.claude/scripts/plane.sh`, comando `/tarea`): el proyecto se trackea en Plane.so y el enjambre **gestiona las tareas solo** (política jul-2026): mueve estados (*In Progress* al arrancar, *Testing* al quedar en validación en staging, *Done* al verificar), **comenta** avances/cierres/bloqueos, **crea** issues para trabajo no trackeado (detallados según la plantilla del skill; hallazgos colaterales → Backlog) y **enriquece** descripciones pobres vía `update` — todo **sin pedir permiso antes: se informa después** en el reporte ("creé #NN", "moví #N a Testing"). Excepciones: `delete` siempre con OK explícito; no re-priorizar issues existentes por tu cuenta. Toda tarea de desarrollo debería tener su issue y su rama `feature/<#seq>-<slug>`. Config y API key **per-dev**: markers `PLANE_*` en `workspace.md` + `PLANE_API_KEY` en el archivo de secretos (`NOKEY_SECRETS_FILE`).
 - **Convenciones del proyecto**: siempre lee AGENTS.md en raiz del repo antes de trabajar
 - **Breaking changes**: para tu `ODOO_VERSION`, consultá `.claude/references/` (AGENTS.md → "Breaking Changes"); el hook los valida automáticamente
 - **Documentacion obligatoria** (ver *Precondición de documentación* al inicio de esta sección): aplica a **cualquier** edición de un módulo, no solo a "implementar feature". Si falta `README.md` o `static/description/index.html`, invocar @module-index-html para generarlos; si ya existen y el cambio altera funcionalidad, actualizarlos. Todo modulo nuevo debe recibir documentacion al finalizar.

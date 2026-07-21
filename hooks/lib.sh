@@ -77,31 +77,22 @@ swarm_load_secrets() {
     done < "$f"
 }
 
-# ── Ramas largas Gitflow (agnóstico de versión) ──────────────────────────────
-# Resuelven la rama larga real de un repo: primero el config gitflow del propio repo (maneja repos
-# con nombres no estándar), si no la convención del proyecto con ODOO_VERSION. Vacío si no se puede determinar.
+# ── Ramas largas de deploy (staging/producción, marker-based) ────────────────
+# El modelo staging/prod se declara en workspace.md (markers STAGING_BRANCH / PROD_BRANCH,
+# ver workspace.example.md § Deploy). Típico Odoo.sh: push a la rama larga = deploy del
+# entorno. Vacío si el workspace no declara el marker (rige el modelo simple del skill `git`).
 
-# Rama develop (integración / "listo para Test"). feature/bugfix apuntan acá.
-swarm_develop_branch() {
-    local repo="$1" b ver
-    b="$(git -C "$repo" config --get gitflow.branch.develop 2>/dev/null)"
-    if [ -z "$b" ]; then
-        ver="$(swarm_ws_marker ODOO_VERSION)"
-        [ -n "$ver" ] && b="develop_${ver}.0"
-    fi
-    printf '%s' "$b"
-}
+# Rama de staging/integración (ej. stagesunra). feature/fix nacen y apuntan acá.
+swarm_staging_branch() { swarm_ws_marker STAGING_BRANCH; }
 
-# Rama de producción (estable, desplegada). hotfix/release apuntan acá.
-swarm_prod_branch() {
-    local repo="$1" b ver
-    b="$(git -C "$repo" config --get gitflow.branch.master 2>/dev/null)"
-    if [ -z "$b" ]; then
-        ver="$(swarm_ws_marker ODOO_VERSION)"
-        [ -n "$ver" ] && b="${ver}.0"
-    fi
-    printf '%s' "$b"
-}
+# Rama de producción (estable, desplegada; ej. main). hotfix nace acá; release apunta acá.
+swarm_prod_branch() { swarm_ws_marker PROD_BRANCH; }
+
+# Plataforma de deploy declarada (ej. odoo.sh) y URLs de los entornos. Informativos
+# (/salud, /contexto, handoffs de @git-flow). Vacío si no se declaran.
+swarm_deploy_platform() { swarm_ws_marker DEPLOY_PLATFORM; }
+swarm_prod_url()        { swarm_ws_marker PROD_URL; }
+swarm_staging_url()     { swarm_ws_marker STAGING_URL; }
 
 # Resuelve una lista de tokens (handles o paths) a paths ABSOLUTOS, uno por linea.
 # - token sin "/" que coincide con un marcador -> su valor (handle)
