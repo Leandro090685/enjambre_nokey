@@ -1,0 +1,13 @@
+node_modules
+package.json
+package-lock.json
+bun.lock
+
+# Config de entorno por desarrollador (ver workspace.example.md)
+workspace.md
+
+# Config de entorno por desarrollador (no subir a git)
+settings.local.json
+# Python cache (artefactos generados)
+__pycache__/
+*.py[cod]

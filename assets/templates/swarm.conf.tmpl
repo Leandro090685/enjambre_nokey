@@ -1,0 +1,13 @@
+# .swarm.conf — Política de tests POR REPOSITORIO (committeado en la raíz del repo de addons).
+# Formato KEY=value. Sin este archivo o sin la clave -> rige el default (no se escriben tests
+# salvo pedido explícito). Dos ejes INDEPENDIENTES (uno, otro, ambos o ninguno):
+#
+#   TESTS=required   -> tests BACKEND (TransactionCase/HttpCase para modelos, computes, constraints,
+#                       controllers) en todo módulo tocado (flujos troncales).
+#   E2E=required     -> tests E2E de UI con Tours de Odoo (HttpCase.start_tour), solo para módulos
+#                       con un flujo de UI troncal (portal/website, JS en static/src, controllers).
+#
+# Descomentá lo que aplique a este repo:
+
+# TESTS=required
+# E2E=required

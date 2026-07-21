@@ -1,0 +1,20 @@
+# Patrones de breaking changes Odoo 19 para check_breaking_changes.sh
+# Formato (tab-separated): ext\tpattern\tseverity\tguard\tmensaje
+#   ext      : py | xml | js
+#   pattern  : regex (grep -E) PROHIBIDO en esta version
+#   severity : error (bloquea) | warn (solo informa)
+#   guard    : regex que ademas debe existir en el archivo para aplicar; "-" = sin guard
+#   mensaje  : explicacion para el dev
+xml	<tree	error	-	usa <tree> — en v19 debe ser <list>
+xml	<group[^>]*expand=	error	-	usa <group expand=> en search view — eliminado en v18+ (usar <filter context="group_by">)
+xml	company_type	warn	-	usa company_type en XML — en v19 es compute field, usar is_company
+py	_sql_constraints	error	-	usa _sql_constraints — en v19 debe ser models.Constraint
+py	groups_id	error	-	usa groups_id — en v19 se renombro a group_ids en TODOS los modelos (res.users, ir.ui.menu, ir.ui.view, ir.actions.*)
+py	user_has_groups	error	-	usa user_has_groups() — en v19 debe ser self.env.user.has_group()
+py	category_id	error	res.groups	usa category_id en contexto res.groups — en v19 debe ser privilege_id
+xml	attrs=	error	-	usa attrs= — eliminado en v17, usar atributos directos con expresion Python (invisible=, readonly=, required=)
+py	def name_get	error	-	define name_get() — desde v17 reemplazado por _compute_display_name() con @api.depends
+py	def (pre_init_hook|post_init_hook|uninstall_hook)\(cr	error	-	firma vieja de hook de modulo — desde v17 reciben (env,), no (cr, registry)
+xml	editable="(0|1|false|False|true|True|none|None)"	error	-	usa un valor invalido en editable= de <list> — la validacion RNG de v19 (base/rng/list_view.rng) solo acepta "top" o "bottom" y CUALQUIER otro valor rompe la carga del modulo con ParseError; para lista read-only: omitir editable y usar readonly en el campo + create="0" delete="0"
+js	useService\(("|')rpc("|')\)	error	-	usa useService('rpc') — el servicio rpc se elimino en v18: para call_kw usar useService('orm') + this.orm.call(model, method, args, kwargs); para rutas crudas import { rpc } from '@web/core/network/rpc' (ver references/17_to_18.md seccion 15)
+xml	<field name="users"	error	model="res.groups"	usa <field name="users"> con res.groups — en v19 se renombro a user_ids (ver v19_gotchas.md seccion res.groups)
