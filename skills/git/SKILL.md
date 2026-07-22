@@ -148,8 +148,12 @@ git submodule update --remote                 # trae la punta de develop_19.0 de
 git add <submodulo> && git commit -m "Actualiza submodulo <x> a develop_19.0 (...)"
 git push origin <STAGING_BRANCH>              # ⚠️ deploya staging — confirmar con el usuario
 ```
-Producción: promover a `PROD_BRANCH` del agregador (mismo mecanismo). Convención de commit del
-agregador: la del repo (mirá `git log`).
+**Cada rama de entorno del agregador rastrea su propia rama de submódulo** (no es una promoción de la
+otra): staging → los addons en su rama de integración (`develop_19.0`); producción → los addons en su
+rama de release (`19.0`). Se arma con `git submodule add -b <rama> <url> <path>`. Deployar producción
+= en el checkout de prod, `git submodule update --remote` (trae la punta de `19.0`) + commit del pin +
+`git push origin <PROD_BRANCH>` (⚠️ deploya prod — confirmar). Convención de commit del agregador: la
+del repo (mirá `git log`).
 
 ---
 
