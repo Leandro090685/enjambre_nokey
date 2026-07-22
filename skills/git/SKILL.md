@@ -116,18 +116,40 @@ estilo existente**:
 **La única cautela del modelo directo.** Si un repo está conectado a **Odoo.sh** (u otra plataforma
 que despliega por push), un `git push` a la rama larga **deploya el entorno**. Se declara con markers
 opcionales en `workspace.md` (§ Deploy): `DEPLOY_PLATFORM`, `PROD_BRANCH`/`STAGING_BRANCH` + URLs.
-`git_state.sh` los resuelve y avisa.
+`git_state.sh` los resuelve y emite `DEPLOY_BRANCH=yes` cuando estás parado en una de esas ramas.
 
 - **Con markers declarados** (repo Odoo.sh): un push a `PROD_BRANCH` o `STAGING_BRANCH` **despliega
   producción / staging**. Ese push se confirma **explícitamente con el usuario** antes de correrlo
   (avisá qué entorno se va a desplegar y su URL). Ante la duda → `NEEDS_INPUT`.
-- **Sin markers** (el caso normal de los repos actuales `odoo_l10n_ar`/`odoo_customization_sunra`):
-  el push es un push común de GitHub, no deploya nada → directo, sin ceremonia.
-- **`sunrasa`** es el repo legacy conectado a Odoo.sh (fuera del `addons_path`); si alguna vez se
-  trabaja, aplica esta cautela.
+- **Sin markers** (el caso normal de los repos de addons `odoo_l10n_ar`/`odoo_customization_sunra`,
+  en `develop_19.0`): el push es un push común de GitHub, no deploya nada → directo, sin ceremonia.
 
 > Esto **no** reintroduce git flow: no hay ramas de feature ni PRs. Es solo "pensar antes de pushear
 > a una rama que auto-despliega".
+
+### 5.1 Repo agregador con submódulos (patrón Odoo.sh)
+
+Un repo Odoo.sh suele ser un **agregador**: no tiene código propio, sino que referencia a los repos
+de addons como **submódulos** (pinneados a un commit; con `branch=` en `.gitmodules`). Es el caso de
+**`sunrasa`** en este workspace (submódulos `odoo_l10n_ar` + `odoo_customization_sunra`; ramas de
+entorno `stagesunra`/`main`; checkouts de referencia `staging/sunrasa` / `produccion/sunrasa` — datos
+concretos en `workspace.md` § Deploy).
+
+Consecuencia clave: **el Odoo local carga los addons directo de `extra-addons/`, pero Odoo.sh deploya
+el agregador.** Pushear el repo del addon (`odoo_l10n_ar` @ `develop_19.0`) **no** deploya nada por sí
+solo — hay que **bumpear el pin del submódulo** en el agregador y pushear la rama de entorno:
+
+```bash
+# Tras clonar/pull del agregador, poblar submódulos:
+git -C staging/sunrasa submodule update --init --recursive
+# Deployar a staging el estado actual de los addons:
+cd staging/sunrasa
+git submodule update --remote                 # trae la punta de develop_19.0 de cada submódulo
+git add <submodulo> && git commit -m "Actualiza submodulo <x> a develop_19.0 (...)"
+git push origin <STAGING_BRANCH>              # ⚠️ deploya staging — confirmar con el usuario
+```
+Producción: promover a `PROD_BRANCH` del agregador (mismo mecanismo). Convención de commit del
+agregador: la del repo (mirá `git log`).
 
 ---
 
@@ -178,4 +200,5 @@ Cuando una tarea toca varios repos a la vez:
 | Push directo (a pedido) | `git push origin develop_19.0` |
 | Replicar a otra rama larga (a pedido) | `git checkout 19.0 && git merge --ff-only develop_19.0 && git push origin 19.0` |
 | Repo Odoo.sh (con markers) | push a rama de deploy = **deploy real** → confirmar con el usuario (§5) |
+| Deploy Odoo.sh (agregador) | en `staging/sunrasa`: `git submodule update --remote` → `git add <sub> && commit` → `git push origin <STAGING_BRANCH>` = **deploy staging** (§5.1) |
 | Multi-repo | secuencial, un repo a la vez, frenar si uno falla (§6) |
