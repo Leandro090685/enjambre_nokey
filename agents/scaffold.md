@@ -118,6 +118,6 @@ access_model_name_user,model.name.user,model_model_name,base.group_user,1,1,1,1
   minimo con `@tagged("post_install", "-at_install")`) — la logica de los tests la completa
   @code-dev junto con la logica de negocio
 - Generar `README.md` basico y `static/description/index.html` como parte del scaffold (o delegarlo a @module-index-html si el orquestador lo indica)
-- **No ejecutar operaciones Git** (branch/commit/push/merge): las coordina el orquestador vía
-  @git-flow. Asumí que ya estás en la rama de trabajo correcta (`feature/*` o `fix/*`) — el
-  orquestador garantiza el *branch-first* antes de mandarte a crear el módulo.
+- **No ejecutar operaciones Git** (commit/push): las coordina el orquestador vía @git-flow, y solo
+  a pedido del usuario. Asumí que ya estás en la **rama de integración** del repo (típ.
+  `develop_19.0`); el modelo es directo (sin ramas de feature/fix). Solo escribís archivos.

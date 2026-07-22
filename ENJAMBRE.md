@@ -52,7 +52,7 @@ Todo lo demás (skills, agents, commands, hooks) **referencia** estas tres capas
     │   ├── scaffold.md                 ← Estructura base de módulos nuevos
     │   ├── reviewer.md                 ← Code review con checklist
     │   ├── testing.md                  ← Testing estático/funcional/upgrade
-    │   ├── git-flow.md                 ← Operaciones Git genéricas: ramas, commits, PR
+    │   ├── git-flow.md                 ← Operaciones Git: commit/push directo (modelo directo, sin ramas de feature ni PR)
     │   ├── odoo-migration.md           ← Migración entre versiones [procedimiento interno]
     │   ├── module-index-html.md        ← Documentación HTML [procedimiento interno]
     │   └── sdd-generate.md             ← Especificaciones SDD [procedimiento interno]
@@ -69,7 +69,7 @@ Todo lo demás (skills, agents, commands, hooks) **referencia** estas tres capas
     │   ├── odoo-data-migration/SKILL.md ← Migración de datos / scripts de upgrade
     │   ├── odoo-tests/SKILL.md         ← Patrones de tests (si se piden o el repo los requiere)
     │   ├── debugging-odoo/SKILL.md     ← Técnicas de debugging
-    │   ├── git/SKILL.md                ← Flujo Git (staging/prod Odoo.sh, release, hotfix)
+    │   ├── git/SKILL.md                ← Flujo Git (modelo directo: commit/push directo, sin PR; excepción Odoo.sh)
     │   ├── plane-tracking/SKILL.md     ← Seguimiento en Plane.so (ciclo agéntico de tareas)
     │   ├── sdd-specification/SKILL.md  ← Metodología SDD
     │   └── minimal-footprint/SKILL.md  ← Disciplina anti-over-engineering (escalera + NO-negociables)
@@ -158,7 +158,7 @@ matriz operativa vive en `CLAUDE.md` § *Paralelización*; acá el **porqué**:
 - **El hazard real es el working tree + rama git compartidos**, no los hooks: los validadores
   PostToolUse son stateless por archivo con temporales keyed por PID, sin estado mutable
   compartido. Por eso dos escritores en el **mismo repo** nunca se paralelizan, pero en **repos
-  distintos** (working trees separados, cada uno con su rama branch-first asegurada antes de
+  distintos** (working trees separados, cada uno parado en su rama de integración antes de
   spawnear) sí es seguro.
 - **@testing es "read-only" solo en tools**: muta DB y contenedor (upgrade, datafixes,
   chrome-install). Se paraleliza con lectores de archivos (@reviewer) porque las superficies son
@@ -186,7 +186,7 @@ Cada agente es un **subproceso independiente** que se spawnea con la tool `Task`
 | `scaffold` | Crea estructura base de un módulo nuevo | Read, Edit, Write, Bash, Glob, Grep |
 | `reviewer` | Revisa código contra checklist del proyecto | Read, Grep, Glob (read-only) |
 | `testing` | py_compile, xmllint, upgrade, datafixes | Read, Grep, Glob, Bash |
-| `git-flow` | Operaciones Git genéricas: branch-first + commit/PR/finish a pedido | Read, Bash, Grep, Glob |
+| `git-flow` | Operaciones Git: commit/push directo sobre la rama de integración, a pedido (sin ramas de feature ni PR) | Read, Bash, Grep, Glob |
 
 **Procedimientos internos** (solo el orquestador los invoca):
 | Agente | Hace |
@@ -206,7 +206,7 @@ orquestador (sesión principal) corre en **Opus**.
 | Modelo | Agentes | Por qué |
 |--------|---------|---------|
 | **opus** | `feature-analyst`, `sdd-generate`, `reviewer`, `odoo-migration` | Juicio de diseño, arquitectura, consistencia y breaking changes — decisiones de **alto costo de error**. |
-| **sonnet** | `code-dev`, `scaffold`, `researcher`, `client-context`, `testing`, `module-index-html`, `git-flow` | Ejecución guiada por spec/plantilla/grep/convención, resumen y validación — **determinista**. El criterio fuerte (ej. gate de conflicto SDD, o *cuándo* pushear/abrir PR) lo eleva el agente al orquestador (`Status: BLOCKED`/`NEEDS_INPUT`), no lo resuelve solo. |
+| **sonnet** | `code-dev`, `scaffold`, `researcher`, `client-context`, `testing`, `module-index-html`, `git-flow` | Ejecución guiada por spec/plantilla/grep/convención, resumen y validación — **determinista**. El criterio fuerte (ej. gate de conflicto SDD, o *cuándo* pushear) lo eleva el agente al orquestador (`Status: BLOCKED`/`NEEDS_INPUT`), no lo resuelve solo. |
 
 > No se usa Haiku (decisión del equipo: calidad sobre ahorro máximo). Si la calidad de algún agente Sonnet
 > no alcanza para su tarea, subilo a Opus; el `model` es un parámetro, no un dogma.
@@ -232,7 +232,7 @@ A diferencia de los agentes (que son subprocesos), los skills se **inyectan en e
 | `odoo-data-migration` | Al escribir scripts de upgrade o datafixes (migración de datos) |
 | `odoo-tests` | Al escribir tests backend o e2e (cuando se piden explícitamente o el repo los requiere vía `.swarm.conf` `TESTS=required` / `E2E=required`; el orquestador lo inyecta a @code-dev en ese caso) |
 | `debugging-odoo` | Al diagnosticar errores |
-| `git` | Flujo Git: feature/fix desde staging, hotfix desde prod, PRs vía `gh`, release staging→prod a pedido — ramas de deploy Odoo.sh declaradas en `workspace.md` § Deploy (lo carga @git-flow) |
+| `git` | Flujo Git **directo**: commit y push directo sobre la rama de integración (típ. `develop_19.0`), sin ramas de feature/fix ni PR ni aprobación. Única excepción: repos Odoo.sh (markers en `workspace.md` § Deploy), donde push a la rama de deploy = deploy → confirmar (lo carga @git-flow) |
 | `plane-tracking` | Seguimiento en Plane.so: ciclo agéntico de tareas (Todo→In Progress→Testing→Done, comentarios, creación directa de issues, plantilla de issue detallado). Lo usa el orquestador (`/plane`, `/tarea`) |
 | `sdd-specification` | Al generar especificaciones SDD |
 | `minimal-footprint` | Al refinar requerimientos, implementar lógica de negocio o revisar código (anti-over-engineering; lo inyecta el orquestador a @feature-analyst y @code-dev, y lo usa @reviewer) |
@@ -347,7 +347,7 @@ read-only salvo donde se indica. `/salud` verifica que estén presentes y ejecut
 |--------|--------------|-----------------|
 | `odoo_runtime.sh` | Runtime Odoo resuelto una vez (engine/contenedor/DB): logs, upgrade/install/test, psql, backup/restore (muta DB, `restore` pide `--yes`), validate, deps | @testing, skill `debugging-odoo` |
 | `cliente.sh` | Inventario del repo de un cliente: módulos, versiones, SDD + estado + **drift**, docs, integraciones | @client-context (paso 1) |
-| `git_state.sh` | Estado Git parseable (toplevel, tipo de repo, rama y si es protegida, staged, módulos) | @git-flow |
+| `git_state.sh` | Estado Git parseable (toplevel, tipo de repo, rama y si es una rama de deploy Odoo.sh, staged, módulos) | @git-flow |
 | `extract_docx.sh` | Ingesta `.docx`: texto + imágenes embebidas con cadena de fallback fija | @feature-analyst |
 | `spec_lint.py` | Linter de specs SDD: metadatos, estado, version sync, cobertura CA↔T, dependencias, anclajes `path:L#` | @sdd-generate (auto-chequeo); orquestador (pre-pass de analyze) |
 | `review_static.sh` | Pre-pass estático de review sobre el módulo completo (convenciones + breaking changes + señales sudo/SQL/ACL/XML IDs + spec_lint si es SDD) | **Orquestador**, que inyecta la salida a @reviewer (sin Bash a propósito) |
@@ -367,12 +367,12 @@ gate al escribir; estos scripts son la versión **on-demand por módulo** para o
    │
    ├── ¿Feature compleja? → ofrece SDD → sdd-generate
    │
-   ├── BRANCH-FIRST: ¿el repo está en una rama larga (main / stagesunra)? → git-flow crea la rama
-   │   de trabajo: feature/fix desde staging; hotfix desde prod (workspace.md § Deploy, skill git)
+   ├── RAMA DE INTEGRACIÓN: se trabaja directo sobre ella (típ. develop_19.0). Modelo directo, sin
+   │   ramas de feature ni PR. git-flow (a pedido) confirma que el repo esté parado ahí (skill git)
    │
    ├── ¿Módulo nuevo? → scaffold
    │
-   ├── code-dev implementa (sobre la rama de feature/fix)
+   ├── code-dev implementa (sobre la rama de integración)
    │   │
    │   └── Cada archivo escrito → HOOKS validan automáticamente
    │
@@ -383,7 +383,7 @@ gate al escribir; estos scripts son la versión **on-demand por módulo** para o
    ├── reviewer (si se usó spec)
    │
    └── ORQUESTADOR reporta al usuario
-       └── Handoff Git: cambios en la rama de feature/fix; commit/push/PR vía git-flow SOLO a pedido
+       └── Handoff Git: cambios en la rama de integración; commit/push directo vía git-flow SOLO a pedido
 ```
 
 ---

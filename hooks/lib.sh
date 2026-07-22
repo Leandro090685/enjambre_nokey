@@ -77,15 +77,16 @@ swarm_load_secrets() {
     done < "$f"
 }
 
-# ── Ramas largas de deploy (staging/producción, marker-based) ────────────────
-# El modelo staging/prod se declara en workspace.md (markers STAGING_BRANCH / PROD_BRANCH,
-# ver workspace.example.md § Deploy). Típico Odoo.sh: push a la rama larga = deploy del
-# entorno. Vacío si el workspace no declara el marker (rige el modelo simple del skill `git`).
+# ── Ramas de deploy Odoo.sh (marker-based, excepción del modelo directo) ──────
+# El modelo Git es DIRECTO (commit/push directo sobre la rama de integración, skill `git`).
+# Estos markers (STAGING_BRANCH / PROD_BRANCH en workspace.md, ver workspace.example.md § Deploy)
+# solo declaran la excepción Odoo.sh: push a esa rama larga = deploy del entorno → confirmar antes.
+# Vacío si el workspace no los declara (el caso normal: ninguna rama deploya).
 
-# Rama de staging/integración (ej. stagesunra). feature/fix nacen y apuntan acá.
+# Rama de staging desplegada en Odoo.sh (ej. stagesunra). Push acá = deploy de staging.
 swarm_staging_branch() { swarm_ws_marker STAGING_BRANCH; }
 
-# Rama de producción (estable, desplegada; ej. main). hotfix nace acá; release apunta acá.
+# Rama de producción desplegada en Odoo.sh (ej. main). Push acá = deploy de producción.
 swarm_prod_branch() { swarm_ws_marker PROD_BRANCH; }
 
 # Plataforma de deploy declarada (ej. odoo.sh) y URLs de los entornos. Informativos

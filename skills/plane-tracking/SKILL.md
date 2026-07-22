@@ -31,7 +31,7 @@ Estados reales del proyecto (grupos entre paréntesis; verificables con `plane.s
 | **Backlog** | backlog | Idea/pendiente sin arrancar ni planificar. |
 | **Todo** | unstarted | Planificada y **bien detallada**, lista para tomar (pool de `next`/`/tarea`). |
 | **In Progress** | started | En desarrollo **ahora**. |
-| **Testing** | started | Implementada, **en validación**: mergeada/desplegada en staging (`STAGING_URL`, ver `workspace.md` § Deploy) o esperando prueba funcional del usuario. |
+| **Testing** | started | Implementada, **en validación**: pusheada a la rama de integración y esperando prueba funcional del usuario (o, en repos Odoo.sh, desplegada en `STAGING_URL` — ver `workspace.md` § Deploy). |
 | **Done** | completed | Terminada y **verificada**. |
 | **Cancelled** | cancelled | Descartada / no se hace. |
 
@@ -61,7 +61,7 @@ delete <#seq|uuid> --yes              DESTRUCTIVO (exige --yes y OK explícito d
   ```bash
   bash .claude/scripts/plane.sh next
   bash .claude/scripts/plane.sh move 9 "In Progress"
-  bash .claude/scripts/plane.sh comment 9 "Implementado en <code>feature/9-warranty-flow</code>; validar en staging."
+  bash .claude/scripts/plane.sh comment 9 "Implementado y pusheado a <code>develop_19.0</code> (commit abc1234); listo para validar."
   bash .claude/scripts/plane.sh create --name "Fix numeración diario" --state Todo --priority high \
        --desc "Resecuenciar asientos mal numerados."
   ```
@@ -75,15 +75,16 @@ es `delete`.
 
 1. **Tomar una tarea** (pedido "trabajá la #N" / "agarrá la próxima" → comando `/tarea`):
    `get <#seq>` (o `next`) → mover a **In Progress** → resolver con el flujo que corresponda
-   (Implementa/Modifica/Refina/Migra de `CLAUDE.md`), en rama `feature/<#seq>-<slug>` (skill `git`).
+   (Implementa/Modifica/Refina/Migra de `CLAUDE.md`), directo sobre la rama de integración del repo
+   (típ. `develop_19.0`; modelo directo, sin git flow — skill `git`).
 2. **Durante el trabajo**, comentá los hitos que le sirvan a un humano que mira el tablero: decisión
-   de diseño relevante, bloqueo encontrado, rama creada. Sin ruido: hitos, no cada paso.
-3. **Al terminar la implementación** (código listo y validado localmente, rama publicada o merge a
-   staging hecho) → **Testing** + `comment` con: rama/PR, módulos y versiones tocados, qué validar
-   y **dónde** (URL de staging si aplica). Si el issue queda esperando validación humana, Testing
-   es su estado estable — no lo cierres vos.
+   de diseño relevante, bloqueo encontrado. Sin ruido: hitos, no cada paso.
+3. **Al terminar la implementación** (código listo, validado localmente y pusheado a la rama de
+   integración a pedido) → **Testing** + `comment` con: rama/commit, módulos y versiones tocados,
+   qué validar y **dónde**. Si el issue queda esperando validación humana, Testing es su estado
+   estable — no lo cierres vos.
 4. **Al verificar** (el usuario confirma, o la validación fue automatizable y pasó) → **Done** +
-   `comment` de cierre (resultado final; si hubo release, el tag).
+   `comment` de cierre (resultado final).
 5. **Si la tarea no se puede completar** (falta contexto, decisión, dependencia externa): NO
    abandones en silencio — `comment` con el bloqueo concreto, dejala en In Progress (o devolvela a
    Todo si no se empezó nada) y reportá `NEEDS_INPUT`/`BLOCKED` al usuario.
@@ -105,7 +106,7 @@ issue, la descripción incluye (HTML simple: `<p>`, `<ul>`, `<code>`):
 - **Módulo(s)/área**: módulo técnico afectado (o "nuevo módulo"), modelos/flujos que toca.
 - **Criterios de aceptación**: lista verificable (qué tiene que pasar para darla por buena).
 - **Restricciones/decisiones ya tomadas** (si las hay; ej. "reusar Field Service, no modelo nuevo").
-- **Cómo validar**: pasos de prueba y en qué entorno (staging: `STAGING_URL`).
+- **Cómo validar**: pasos de prueba y en qué entorno (local; o, en repos Odoo.sh, `STAGING_URL`).
 
 Si al tomar una tarea la descripción no alcanza para arrancar (sin CA, ambigua), primero completala:
 preguntá lo mínimo al usuario, `update` con lo aclarado, y recién después implementá.

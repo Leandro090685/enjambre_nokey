@@ -104,25 +104,26 @@ propio para levantar Odoo, etc.) va acá en prosa.
 
 ---
 
-## Deploy: staging / producción (opcional)
+## Deploy: repos Odoo.sh (opcional)
 
-Si el repo de trabajo tiene entornos desplegados atados a ramas largas (típico **Odoo.sh**: cada
-push a la rama deploya el entorno), declaralo con estos markers — los leen el skill `git`, el
-agente `@git-flow`, `git_state.sh` (para proteger ambas ramas largas) y `/salud`:
+**El modelo Git del enjambre es directo** (ver skill `git`): se commitea y pushea directo sobre la
+rama de integración del repo, sin ramas de feature/fix ni PR. Estos markers **no** cambian ese
+modelo — solo declaran la **excepción Odoo.sh**: que ciertas ramas largas del repo están atadas a un
+entorno desplegado, de modo que un `git push` a esa rama **despliega el entorno**. Los leen el skill
+`git`, el agente `@git-flow`, `git_state.sh` (marca la rama como de deploy) y `/salud`:
 
 ```
 DEPLOY_PLATFORM: odoo.sh                        # odoo.sh | otro (informativo)
 PROD_BRANCH:     main                           # rama larga de producción
 PROD_URL:        https://micliente.odoo.com     # URL del entorno de producción
-STAGING_BRANCH:  staging                        # rama larga de staging/integración
+STAGING_BRANCH:  staging                        # rama larga de staging
 STAGING_URL:     https://stage-micliente.odoo.com
 ```
 
-Con esto el flujo Git pasa a modo **staging/prod** (ver skill `git`): `feature/`/`fix/` nacen de
-`STAGING_BRANCH` y sus PRs apuntan ahí; `hotfix/` nace de `PROD_BRANCH` (con back-merge a staging);
-la promoción staging→prod es un **release** (siempre a pedido). Sin estos markers rige el modelo
-simple de una sola rama por defecto. ⚠️ Recordá: si la plataforma es Odoo.sh, **merge a rama larga
-= deploy real** del entorno.
+Con esto declarado, el push a `STAGING_BRANCH`/`PROD_BRANCH` **se confirma con el usuario antes**
+(deploya el entorno) — pero se sigue commiteando directo, sin PR ni ramas de feature. Sin estos
+markers (el caso normal de los repos actuales), ninguna rama deploya: push directo, sin ceremonia.
+⚠️ Recordá: si la plataforma es Odoo.sh, **push a rama de deploy = deploy real** del entorno.
 
 ---
 

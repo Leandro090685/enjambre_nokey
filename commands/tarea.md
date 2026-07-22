@@ -17,15 +17,16 @@ agéntico* + flujo "Trabaja la tarea" de `CLAUDE.md`). Resumen operativo:
    para arrancar** (ambigua, sin criterios): preguntá lo mínimo al usuario, `update` del issue con
    lo aclarado, y recién después seguí.
 3. **Arrancá**: `plane.sh move <#seq> "In Progress"`.
-4. **Branch-first**: @git-flow asegura `feature/<#seq>-<slug>` (o `fix/`; `hotfix/` desde prod si
-   es urgencia de producción) — ver skill `git`.
+4. **Rama de integración**: se trabaja directo sobre la rama de integración del repo (típ.
+   `develop_19.0`) — modelo directo, sin ramas de feature/fix ni PR (ver skill `git`). @git-flow
+   (a pedido) confirma que el repo esté parado ahí.
 5. **Resolvé** con el flujo que corresponda de `CLAUDE.md` (Implementa / Modifica / Crea módulo /
    Refina / Migra), con todas sus precondiciones (docs, SDD, tests, review). Comentá en el issue
-   los hitos relevantes (rama creada, decisiones, bloqueos).
+   los hitos relevantes (decisiones, bloqueos).
 6. **Cerrá el ciclo**:
-   - Implementado y validado → `move <#seq> "Testing"` + `comment` (rama/PR, módulos+versión, qué
-     validar y dónde — URL de staging si aplica). Si el usuario ya verificó → `move <#seq> "Done"`.
+   - Implementado y validado → `move <#seq> "Testing"` + `comment` (rama, módulos+versión, qué
+     validar y dónde). Si el usuario ya verificó → `move <#seq> "Done"`.
    - Bloqueado / falta input → `comment` con el bloqueo concreto y reportá al usuario (la tarea
      queda en In Progress, o vuelve a Todo si no se empezó nada).
-7. **Reportá** al usuario: qué issue se trabajó, rama, estado final en Plane, y el handoff Git
-   (commit/push/PR solo a pedido).
+7. **Reportá** al usuario: qué issue se trabajó, rama de integración, estado final en Plane, y el
+   handoff Git (commit/push directo solo a pedido).
