@@ -1,5 +1,5 @@
 #!/bin/bash
-# scripts/git_state.sh — deteccion determinista de estado Git para @git-flow.
+# scripts/git_state.sh — deteccion determinista de estado Git para @git-ops.
 #
 # Resuelve lo mecanico que el agente antes razonaba: toplevel, tipo de repo (trabajo/core/enjambre),
 # rama actual, si es una rama de deploy Odoo.sh, staged y modulos tocados. La convencion (rama de
@@ -32,15 +32,29 @@ swarm_is_core_path "$top/x" && repo_kind="core"
 
 branch="$(git -C "$top" rev-parse --abbrev-ref HEAD 2>/dev/null)"
 
-# Rama de DEPLOY (solo Odoo.sh, con markers declarados en workspace.md): si la rama actual coincide
-# con STAGING_BRANCH/PROD_BRANCH, un push la DESPLIEGA → confirmar antes de pushear. Sin markers,
-# ninguna rama es de deploy: el modelo es DIRECTO (commit/push directo sobre la rama de integracion,
-# ver skill `git`), asi que main/master u otra rama larga NO se marcan como intocables.
+# Rama de DEPLOY (solo Odoo.sh, con markers declarados en workspace.md): si ESTE repo es el repo
+# de deploy declarado (DEPLOY_REPO vs URL del origin) y la rama actual coincide con
+# STAGING_BRANCH/PROD_BRANCH, un push la DESPLIEGA → confirmar antes de pushear. En cualquier otro
+# repo, o sin markers, ninguna rama es de deploy: el modelo es DIRECTO (commit/push directo sobre
+# la rama de integracion, ver skill `git`) y main/master NO se marcan como intocables.
 staging_branch="$(swarm_staging_branch)"
 prod_branch="$(swarm_prod_branch)"
+deploy_repo="$(swarm_deploy_repo)"
+is_deploy_repo="no"
+if [ -n "$staging_branch$prod_branch" ]; then
+    if [ -n "$deploy_repo" ]; then
+        origin_url="$(git -C "$top" remote get-url origin 2>/dev/null)"
+        case "$origin_url" in *"$deploy_repo"*) is_deploy_repo="yes" ;; esac
+    else
+        # retro-compat: sin DEPLOY_REPO declarado, las ramas aplican a cualquier repo
+        is_deploy_repo="yes"
+    fi
+fi
 deploy_branch="no"
-[ -n "$staging_branch" ] && [ "$branch" = "$staging_branch" ] && deploy_branch="yes"
-[ -n "$prod_branch" ] && [ "$branch" = "$prod_branch" ] && deploy_branch="yes"
+if [ "$is_deploy_repo" = "yes" ]; then
+    [ -n "$staging_branch" ] && [ "$branch" = "$staging_branch" ] && deploy_branch="yes"
+    [ -n "$prod_branch" ] && [ "$branch" = "$prod_branch" ] && deploy_branch="yes"
+fi
 
 # Staged y modulos tocados (swarm_module_root sobre cada path staged, dedup).
 staged="$(git -C "$top" diff --staged --name-only 2>/dev/null)"
@@ -61,6 +75,7 @@ state)
     echo "REPO=$top"
     echo "REPO_KIND=$repo_kind"
     echo "BRANCH=$branch"
+    echo "IS_DEPLOY_REPO=$is_deploy_repo"
     echo "DEPLOY_BRANCH=$deploy_branch"
     echo "STAGING_BRANCH=${staging_branch:-}"
     echo "PROD_BRANCH=${prod_branch:-}"

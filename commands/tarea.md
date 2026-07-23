@@ -18,7 +18,7 @@ agéntico* + flujo "Trabaja la tarea" de `CLAUDE.md`). Resumen operativo:
    lo aclarado, y recién después seguí.
 3. **Arrancá**: `plane.sh move <#seq> "In Progress"`.
 4. **Rama de integración**: se trabaja directo sobre la rama de integración del repo (típ.
-   `develop_19.0`) — modelo directo, sin ramas de feature/fix ni PR (ver skill `git`). @git-flow
+   `develop_19.0`) — modelo directo, sin ramas de feature/fix ni PR (ver skill `git`). @git-ops
    (a pedido) confirma que el repo esté parado ahí.
 5. **Resolvé** con el flujo que corresponda de `CLAUDE.md` (Implementa / Modifica / Crea módulo /
    Refina / Migra), con todas sus precondiciones (docs, SDD, tests, review). Comentá en el issue

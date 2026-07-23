@@ -89,8 +89,13 @@ swarm_staging_branch() { swarm_ws_marker STAGING_BRANCH; }
 # Rama de producción desplegada en Odoo.sh (ej. main). Push acá = deploy de producción.
 swarm_prod_branch() { swarm_ws_marker PROD_BRANCH; }
 
+# Identificador del repo de deploy (ej. owner/repo: sunraargsh/sunrasa). Las ramas de deploy
+# aplican SOLO a este repo (match contra la URL del origin) — sin esto, cualquier repo parado
+# en una rama llamada igual (ej. main) daría un falso "push = deploy".
+swarm_deploy_repo() { swarm_ws_marker DEPLOY_REPO; }
+
 # Plataforma de deploy declarada (ej. odoo.sh) y URLs de los entornos. Informativos
-# (/salud, /contexto, handoffs de @git-flow). Vacío si no se declaran.
+# (/salud, /contexto, handoffs de @git-ops). Vacío si no se declaran.
 swarm_deploy_platform() { swarm_ws_marker DEPLOY_PLATFORM; }
 swarm_prod_url()        { swarm_ws_marker PROD_URL; }
 swarm_staging_url()     { swarm_ws_marker STAGING_URL; }

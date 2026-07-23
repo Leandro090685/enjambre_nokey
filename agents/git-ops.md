@@ -1,5 +1,5 @@
 ---
-name: git-flow
+name: git-ops
 description: Ejecuta operaciones Git sobre los repos de trabajo. Modelo DIRECTO — commit y push directo sobre la rama de integración, sin ramas de feature/fix ni PR ni aprobación. Commit/push solo a pedido del usuario.
 model: sonnet
 tools: Read, Bash, Grep, Glob

@@ -52,7 +52,7 @@ Todo lo demás (skills, agents, commands, hooks) **referencia** estas tres capas
     │   ├── scaffold.md                 ← Estructura base de módulos nuevos
     │   ├── reviewer.md                 ← Code review con checklist
     │   ├── testing.md                  ← Testing estático/funcional/upgrade
-    │   ├── git-flow.md                 ← Operaciones Git: commit/push directo (modelo directo, sin ramas de feature ni PR)
+    │   ├── git-ops.md                 ← Operaciones Git: commit/push directo (modelo directo, sin ramas de feature ni PR)
     │   ├── odoo-migration.md           ← Migración entre versiones [procedimiento interno]
     │   ├── module-index-html.md        ← Documentación HTML [procedimiento interno]
     │   └── sdd-generate.md             ← Especificaciones SDD [procedimiento interno]
@@ -98,7 +98,7 @@ Todo lo demás (skills, agents, commands, hooks) **referencia** estas tres capas
     │   ├── contexto.sh  salud.sh       ← Backends de /contexto y /salud
     │   ├── odoo_runtime.sh             ← Runtime Odoo (logs/upgrade/psql/backup/validate) → @testing
     │   ├── cliente.sh                  ← Inventario de cliente (módulos, SDD, drift) → @client-context
-    │   ├── git_state.sh                ← Estado Git básico (rama, protegida, staged, módulos) → @git-flow
+    │   ├── git_state.sh                ← Estado Git básico (rama, protegida, staged, módulos) → @git-ops
     │   ├── extract_docx.sh             ← Ingesta .docx (texto+imágenes) → @feature-analyst
     │   ├── spec_lint.py                ← Linter de specs SDD → @sdd-generate y pre-pass de analyze
     │   ├── review_static.sh            ← Pre-pass estático de review (módulo completo) → @reviewer (vía orquestador)
@@ -170,7 +170,7 @@ matriz operativa vive en `CLAUDE.md` § *Paralelización*; acá el **porqué**:
 - **Fuera de v1 a propósito**: paralelizar módulos independientes del **mismo repo** aislándolos
   en `git worktree` (ya se usa a mano en `.worktrees/`, pero el enjambre no orquesta la creación/
   merge/limpieza de worktrees y ramas por agente). Extensión natural si el nivel `full` demuestra
-  valor. El multi-repo de @git-flow sigue secuencial por diseño (skill `git`).
+  valor. El multi-repo de @git-ops sigue secuencial por diseño (skill `git`).
 
 ### 3. Agentes (subagentes)
 
@@ -186,7 +186,7 @@ Cada agente es un **subproceso independiente** que se spawnea con la tool `Task`
 | `scaffold` | Crea estructura base de un módulo nuevo | Read, Edit, Write, Bash, Glob, Grep |
 | `reviewer` | Revisa código contra checklist del proyecto | Read, Grep, Glob (read-only) |
 | `testing` | py_compile, xmllint, upgrade, datafixes | Read, Grep, Glob, Bash |
-| `git-flow` | Operaciones Git: commit/push directo sobre la rama de integración, a pedido (sin ramas de feature ni PR) | Read, Bash, Grep, Glob |
+| `git-ops` | Operaciones Git: commit/push directo sobre la rama de integración, a pedido (sin ramas de feature ni PR) | Read, Bash, Grep, Glob |
 
 **Procedimientos internos** (solo el orquestador los invoca):
 | Agente | Hace |
@@ -206,7 +206,7 @@ orquestador (sesión principal) corre en **Opus**.
 | Modelo | Agentes | Por qué |
 |--------|---------|---------|
 | **opus** | `feature-analyst`, `sdd-generate`, `reviewer`, `odoo-migration` | Juicio de diseño, arquitectura, consistencia y breaking changes — decisiones de **alto costo de error**. |
-| **sonnet** | `code-dev`, `scaffold`, `researcher`, `client-context`, `testing`, `module-index-html`, `git-flow` | Ejecución guiada por spec/plantilla/grep/convención, resumen y validación — **determinista**. El criterio fuerte (ej. gate de conflicto SDD, o *cuándo* pushear) lo eleva el agente al orquestador (`Status: BLOCKED`/`NEEDS_INPUT`), no lo resuelve solo. |
+| **sonnet** | `code-dev`, `scaffold`, `researcher`, `client-context`, `testing`, `module-index-html`, `git-ops` | Ejecución guiada por spec/plantilla/grep/convención, resumen y validación — **determinista**. El criterio fuerte (ej. gate de conflicto SDD, o *cuándo* pushear) lo eleva el agente al orquestador (`Status: BLOCKED`/`NEEDS_INPUT`), no lo resuelve solo. |
 
 > No se usa Haiku (decisión del equipo: calidad sobre ahorro máximo). Si la calidad de algún agente Sonnet
 > no alcanza para su tarea, subilo a Opus; el `model` es un parámetro, no un dogma.
@@ -232,7 +232,7 @@ A diferencia de los agentes (que son subprocesos), los skills se **inyectan en e
 | `odoo-data-migration` | Al escribir scripts de upgrade o datafixes (migración de datos) |
 | `odoo-tests` | Al escribir tests backend o e2e (cuando se piden explícitamente o el repo los requiere vía `.swarm.conf` `TESTS=required` / `E2E=required`; el orquestador lo inyecta a @code-dev en ese caso) |
 | `debugging-odoo` | Al diagnosticar errores |
-| `git` | Flujo Git **directo**: commit y push directo sobre la rama de integración (típ. `develop_19.0`), sin ramas de feature/fix ni PR ni aprobación. Única excepción: repos Odoo.sh (markers en `workspace.md` § Deploy), donde push a la rama de deploy = deploy → confirmar (lo carga @git-flow) |
+| `git` | Flujo Git **directo**: commit y push directo sobre la rama de integración (típ. `develop_19.0`), sin ramas de feature/fix ni PR ni aprobación. Única excepción: repos Odoo.sh (markers en `workspace.md` § Deploy), donde push a la rama de deploy = deploy → confirmar (lo carga @git-ops) |
 | `plane-tracking` | Seguimiento en Plane.so: ciclo agéntico de tareas (Todo→In Progress→Testing→Done, comentarios, creación directa de issues, plantilla de issue detallado). Lo usa el orquestador (`/plane`, `/tarea`) |
 | `sdd-specification` | Al generar especificaciones SDD |
 | `minimal-footprint` | Al refinar requerimientos, implementar lógica de negocio o revisar código (anti-over-engineering; lo inyecta el orquestador a @feature-analyst y @code-dev, y lo usa @reviewer) |
@@ -347,7 +347,7 @@ read-only salvo donde se indica. `/salud` verifica que estén presentes y ejecut
 |--------|--------------|-----------------|
 | `odoo_runtime.sh` | Runtime Odoo resuelto una vez (engine/contenedor/DB): logs, upgrade/install/test, psql, backup/restore (muta DB, `restore` pide `--yes`), validate, deps | @testing, skill `debugging-odoo` |
 | `cliente.sh` | Inventario del repo de un cliente: módulos, versiones, SDD + estado + **drift**, docs, integraciones | @client-context (paso 1) |
-| `git_state.sh` | Estado Git parseable (toplevel, tipo de repo, rama y si es una rama de deploy Odoo.sh, staged, módulos) | @git-flow |
+| `git_state.sh` | Estado Git parseable (toplevel, tipo de repo, rama y si es una rama de deploy Odoo.sh, staged, módulos) | @git-ops |
 | `extract_docx.sh` | Ingesta `.docx`: texto + imágenes embebidas con cadena de fallback fija | @feature-analyst |
 | `spec_lint.py` | Linter de specs SDD: metadatos, estado, version sync, cobertura CA↔T, dependencias, anclajes `path:L#` | @sdd-generate (auto-chequeo); orquestador (pre-pass de analyze) |
 | `review_static.sh` | Pre-pass estático de review sobre el módulo completo (convenciones + breaking changes + señales sudo/SQL/ACL/XML IDs + spec_lint si es SDD) | **Orquestador**, que inyecta la salida a @reviewer (sin Bash a propósito) |
@@ -368,7 +368,7 @@ gate al escribir; estos scripts son la versión **on-demand por módulo** para o
    ├── ¿Feature compleja? → ofrece SDD → sdd-generate
    │
    ├── RAMA DE INTEGRACIÓN: se trabaja directo sobre ella (típ. develop_19.0). Modelo directo, sin
-   │   ramas de feature ni PR. git-flow (a pedido) confirma que el repo esté parado ahí (skill git)
+   │   ramas de feature ni PR. git-ops (a pedido) confirma que el repo esté parado ahí (skill git)
    │
    ├── ¿Módulo nuevo? → scaffold
    │
@@ -383,7 +383,7 @@ gate al escribir; estos scripts son la versión **on-demand por módulo** para o
    ├── reviewer (si se usó spec)
    │
    └── ORQUESTADOR reporta al usuario
-       └── Handoff Git: cambios en la rama de integración; commit/push directo vía git-flow SOLO a pedido
+       └── Handoff Git: cambios en la rama de integración; commit/push directo vía git-ops SOLO a pedido
 ```
 
 ---
@@ -437,7 +437,7 @@ El hook valida automáticamente los detectables por patrón (`references/pattern
 | Entorno | `.claude/workspace.md` | Versión, paths, Docker, DB, cliente (por dev) |
 | Orquestador + convenciones | `CLAUDE.md` + `AGENTS.md` | Coordinación central y reglas globales |
 | Configuración | `.claude/settings.json` | Permisos + hook de validación |
-| Agentes públicos | 8 | Trabajo especializado (incluye @git-flow) |
+| Agentes públicos | 8 | Trabajo especializado (incluye @git-ops) |
 | Procedimientos internos | 3 | Subrutinas del orquestador |
 | Skills | 15 | Conocimiento cargable |
 | Commands | 11 | Atajos de tareas comunes (incluye `/contexto`, `/salud`, `/plane`, `/tarea`) |

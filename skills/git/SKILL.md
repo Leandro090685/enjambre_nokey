@@ -5,13 +5,13 @@ description: Flujo de trabajo Git del enjambre Nokey. Modelo DIRECTO — se comm
 
 # Flujo de Trabajo Git — Nokey (directo y liviano)
 
-> **Fuente única de verdad de la convención Git.** Todo lo demás (el agente `@git-flow`, `CLAUDE.md`,
+> **Fuente única de verdad de la convención Git.** Todo lo demás (el agente `@git-ops`, `CLAUDE.md`,
 > `ENJAMBRE.md`) **referencia** este skill, no lo repite. Si algo de la convención cambia, se edita
 > **acá**.
 
 > **Alcance**: aplica a los **repos de trabajo** (customizaciones de cliente y productos/repos
 > compartidos, bajo `CLIENT_ADDONS` / `PRODUCT_ADDONS` según `workspace.md`). **No** aplica al repo
-> del enjambre (`.claude/`, gestionado por `session_pull.sh`). Las operaciones las ejecuta `@git-flow`;
+> del enjambre (`.claude/`, gestionado por `session_pull.sh`). Las operaciones las ejecuta `@git-ops`;
 > **el enjambre solo corre git cuando el usuario lo pide** (commit/push).
 
 > ✅ **Convención del enjambre Nokey (definida jul-2026): git DIRECTO, sin git flow.** No usamos ramas
@@ -115,8 +115,10 @@ estilo existente**:
 
 **La única cautela del modelo directo.** Si un repo está conectado a **Odoo.sh** (u otra plataforma
 que despliega por push), un `git push` a la rama larga **deploya el entorno**. Se declara con markers
-opcionales en `workspace.md` (§ Deploy): `DEPLOY_PLATFORM`, `PROD_BRANCH`/`STAGING_BRANCH` + URLs.
-`git_state.sh` los resuelve y emite `DEPLOY_BRANCH=yes` cuando estás parado en una de esas ramas.
+opcionales en `workspace.md` (§ Deploy): `DEPLOY_PLATFORM`, `DEPLOY_REPO` (identificador `owner/repo`
+— la cautela aplica SOLO a ese repo, no a cualquier repo con una rama del mismo nombre),
+`PROD_BRANCH`/`STAGING_BRANCH` + URLs. `git_state.sh` los resuelve y emite `IS_DEPLOY_REPO` y
+`DEPLOY_BRANCH=yes` cuando estás parado en una rama de deploy **del repo de deploy**.
 
 - **Con markers declarados** (repo Odoo.sh): un push a `PROD_BRANCH` o `STAGING_BRANCH` **despliega
   producción / staging**. Ese push se confirma **explícitamente con el usuario** antes de correrlo

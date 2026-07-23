@@ -110,15 +110,19 @@ propio para levantar Odoo, etc.) va acá en prosa.
 rama de integración del repo, sin ramas de feature/fix ni PR. Estos markers **no** cambian ese
 modelo — solo declaran la **excepción Odoo.sh**: que ciertas ramas largas del repo están atadas a un
 entorno desplegado, de modo que un `git push` a esa rama **despliega el entorno**. Los leen el skill
-`git`, el agente `@git-flow`, `git_state.sh` (marca la rama como de deploy) y `/salud`:
+`git`, el agente `@git-ops`, `git_state.sh` (marca la rama como de deploy) y `/salud`:
 
 ```
 DEPLOY_PLATFORM: odoo.sh                        # odoo.sh | otro (informativo)
+DEPLOY_REPO:     owner/micliente                # identifica el repo de deploy (match vs URL del origin)
 PROD_BRANCH:     main                           # rama larga de producción
 PROD_URL:        https://micliente.odoo.com     # URL del entorno de producción
 STAGING_BRANCH:  staging                        # rama larga de staging
 STAGING_URL:     https://stage-micliente.odoo.com
 ```
+
+`DEPLOY_REPO` acota la cautela **a ese repo**: sin él, cualquier repo del workspace parado en una
+rama que se llame igual (ej. `main`) dispararía un falso "push = deploy". Declaralo siempre.
 
 Con esto declarado, el push a `STAGING_BRANCH`/`PROD_BRANCH` **se confirma con el usuario antes**
 (deploya el entorno) — pero se sigue commiteando directo, sin PR ni ramas de feature. Sin estos

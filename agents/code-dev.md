@@ -179,6 +179,6 @@ que **no escribas código contra ellos**.
 - No crear tests salvo que se pidan explicitamente o que el repo los requiera (`.swarm.conf` con
   `TESTS=required` backend y/o `E2E=required` e2e — te lo indica el handoff o el recordatorio del hook)
 - No hacer refactoring no pedido
-- **No ejecutar operaciones Git** (commit/push): las coordina el orquestador vía @git-flow, y solo
+- **No ejecutar operaciones Git** (commit/push): las coordina el orquestador vía @git-ops, y solo
   a pedido del usuario. Asumí que ya estás en la **rama de integración** del repo (típ.
   `develop_19.0`); el modelo es directo (sin ramas de feature/fix). Solo escribís código.
